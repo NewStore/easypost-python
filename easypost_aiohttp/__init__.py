@@ -1,4 +1,5 @@
 import aiohttp
+import asyncio
 import six
 import json
 import platform
@@ -227,6 +228,7 @@ class Requestor(object):
         else:
             return '%s?%s' % (url, cls.encode(params))
 
+    @asyncio.coroutine
     def request(self, method, url, params=None, apiKeyRequired=True):
         if params is None:
             params = {}
@@ -234,6 +236,7 @@ class Requestor(object):
         response = self.interpret_response(http_body, http_status)
         return response, my_api_key
 
+    @asyncio.coroutine
     def request_raw(self, method, url, params=None, apiKeyRequired=True):
         if params is None:
             params = {}
@@ -289,6 +292,7 @@ class Requestor(object):
             self.handle_api_error(http_status, http_body, response)
         return response
 
+    @asyncio.coroutine
     def requests_request(self, method, abs_url, headers, params):
         method = method.lower()
         if method == 'get' or method == 'delete':
@@ -307,7 +311,6 @@ class Requestor(object):
                     result = yield from session.request(method, abs_url, headers=headers, data=data)
                     http_body = yield from result.text()
                     http_status = result.status
-            #result = requests.request(method, abs_url, headers=headers, data=data, timeout=60, verify=True)
         except Exception as e:
             print(e)
             raise Error("Unexpected error communicating with EasyPost. If this "
@@ -498,13 +501,14 @@ class Resource(EasyPostObject):
             pass
 
         instance = cls(easypost_id, api_key, **params)
-        instance.refresh()
+        yield from instance.refresh()
         return instance
 
+    @asyncio.coroutine
     def refresh(self):
         requestor = Requestor(self.api_key)
         url = self.instance_url()
-        response, api_key = requestor.request('get', url, self._retrieve_params)
+        response, api_key = yield from requestor.request('get', url, self._retrieve_params)
         self.refresh_from(response, api_key)
         return self
 
@@ -539,15 +543,17 @@ class Resource(EasyPostObject):
 # parent resource classes
 class AllResource(Resource):
     @classmethod
+    @asyncio.coroutine
     def all(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = cls.class_url()
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         return convert_to_easypost_object(response, api_key)
 
 
 class CreateResource(Resource):
     @classmethod
+    @asyncio.coroutine
     def create(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = cls.class_url()
@@ -557,6 +563,7 @@ class CreateResource(Resource):
 
 
 class UpdateResource(Resource):
+    @asyncio.coroutine
     def save(self):
         if self._unsaved_values:
             requestor = Requestor(self.api_key)
@@ -567,17 +574,18 @@ class UpdateResource(Resource):
                     params[k] = params[k].flatten_unsaved()
             params = {self.class_name(): params}
             url = self.instance_url()
-            response, api_key = requestor.request('put', url, params)
+            response, api_key = yield from requestor.request('put', url, params)
             self.refresh_from(response, api_key)
 
         return self
 
 
 class DeleteResource(Resource):
+    @asyncio.coroutine
     def delete(self, **params):
         requestor = Requestor(self.api_key)
         url = self.instance_url()
-        response, api_key = requestor.request('delete', url, params)
+        response, api_key = yield from requestor.request('delete', url, params)
         self.refresh_from(response, api_key)
         return self
 
@@ -586,6 +594,7 @@ class DeleteResource(Resource):
 class Address(AllResource, CreateResource):
 
     @classmethod
+    @asyncio.coroutine
     def create(cls, api_key=None, verify=None, verify_strict=None, **params):
         requestor = Requestor(api_key)
         url = cls.class_url()
@@ -601,10 +610,11 @@ class Address(AllResource, CreateResource):
                 url += "verify_strict[]={0}".format(param)
 
         wrapped_params = {cls.class_name(): params}
-        response, api_key = requestor.request('post', url, wrapped_params)
+        response, api_key = yield from requestor.request('post', url, wrapped_params)
         return convert_to_easypost_object(response, api_key)
 
     @classmethod
+    @asyncio.coroutine
     def create_and_verify(cls, api_key=None, carrier=None, **params):
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), "create_and_verify")
@@ -613,7 +623,7 @@ class Address(AllResource, CreateResource):
             cls.class_name(): params,
             "carrier": carrier
         }
-        response, api_key = requestor.request('post', url, wrapped_params)
+        response, api_key = yield from requestor.request('post', url, wrapped_params)
 
         response_address = response.get('address', None)
         response_message = response.get('message', None)
@@ -627,12 +637,13 @@ class Address(AllResource, CreateResource):
         else:
             return convert_to_easypost_object(response, api_key)
 
+    @asyncio.coroutine
     def verify(self, carrier=None):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "verify")
         if carrier:
             url += "?carrier=%s" % carrier
-        response, api_key = requestor.request('get', url)
+        response, api_key = yield from requestor.request('get', url)
 
         response_address = response.get('address', None)
         response_message = response.get('message', None)
@@ -666,47 +677,53 @@ class Parcel(AllResource, CreateResource):
 
 class Shipment(AllResource, CreateResource):
     @classmethod
+    @asyncio.coroutine
     def track_with_code(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), "track")
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         return response
 
+    @asyncio.coroutine
     def get_rates(self):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "rates")
-        response, api_key = requestor.request('get', url)
+        response, api_key = yield from requestor.request('get', url)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def buy(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "buy")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def refund(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "refund")
 
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def insure(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "insure")
 
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def label(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "label")
 
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         self.refresh_from(response, api_key)
         return self
 
@@ -756,45 +773,51 @@ class Refund(AllResource, CreateResource):
 
 class Batch(AllResource, CreateResource):
     @classmethod
+    @asyncio.coroutine
     def create_and_buy(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), "create_and_buy")
         wrapped_params = {cls.class_name(): params}
-        response, api_key = requestor.request('post', url, wrapped_params)
+        response, api_key = yield from requestor.request('post', url, wrapped_params)
         return convert_to_easypost_object(response, api_key)
 
+    @asyncio.coroutine
     def buy(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "buy")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def label(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "label")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def remove_shipments(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "remove_shipments")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def add_shipments(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "add_shipments")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def create_scan_form(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "scan_form")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
@@ -805,41 +828,46 @@ class PostageLabel(AllResource, CreateResource):
 
 class Tracker(AllResource, CreateResource):
     @classmethod
+    @asyncio.coroutine
     def create_list(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), "create_list")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         return True
 
     @classmethod
+    @asyncio.coroutine
     def all_updated(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), "all_updated")
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         return convert_to_easypost_object(response["trackers"], api_key), response["has_more"]
 
 
 class Pickup(AllResource, CreateResource):
+    @asyncio.coroutine
     def buy(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "buy")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
+    @asyncio.coroutine
     def cancel(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "cancel")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
 
 class Order(AllResource, CreateResource):
+    @asyncio.coroutine
     def buy(self, **params):
         requestor = Requestor(self.api_key)
         url = "%s/%s" % (self.instance_url(), "buy")
-        response, api_key = requestor.request('post', url, params)
+        response, api_key = yield from requestor.request('post', url, params)
         self.refresh_from(response, api_key)
         return self
 
@@ -856,22 +884,25 @@ class Event(Resource):
 
 class CarrierAccount(AllResource, CreateResource, UpdateResource, DeleteResource):
     @classmethod
+    @asyncio.coroutine
     def types(cls, api_key=None):
         requestor = Requestor(api_key)
-        response, api_key = requestor.request('get', "/carrier_types")
+        response, api_key = yield from requestor.request('get', "/carrier_types")
         return convert_to_easypost_object(response, api_key)
 
 
 class User(CreateResource, UpdateResource, DeleteResource):
     @classmethod
+    @asyncio.coroutine
     def create(cls, api_key=None, **params):
         requestor = Requestor(api_key)
         url = cls.class_url()
         wrapped_params = {cls.class_name(): params}
-        response, api_key = requestor.request('post', url, wrapped_params, False)
+        response, api_key = yield from requestor.request('post', url, wrapped_params, False)
         return convert_to_easypost_object(response, api_key)
 
     @classmethod
+    @asyncio.coroutine
     def retrieve(cls, easypost_id="", api_key=None, **params):
         try:
             easypost_id = easypost_id['id']
@@ -880,7 +911,7 @@ class User(CreateResource, UpdateResource, DeleteResource):
 
         if easypost_id == "":
             requestor = Requestor(api_key)
-            response, api_key = requestor.request('get', cls.class_url())
+            response, api_key = yield from requestor.request('get', cls.class_url())
             return convert_to_easypost_object(response, api_key)
         else:
             instance = cls(easypost_id, api_key, **params)
@@ -888,10 +919,11 @@ class User(CreateResource, UpdateResource, DeleteResource):
             return instance
 
     @classmethod
+    @asyncio.coroutine
     def all_api_keys(cls, api_key=None):
         requestor = Requestor(api_key)
         url = "/api_keys"
-        response, api_key = requestor.request('get', url)
+        response, api_key = yield from requestor.request('get', url)
         return convert_to_easypost_object(response, api_key)
 
     def api_keys(self):
@@ -910,6 +942,7 @@ class User(CreateResource, UpdateResource, DeleteResource):
 
 class Blob(AllResource, CreateResource):
     @classmethod
+    @asyncio.coroutine
     def retrieve(cls, easypost_id, api_key=None, **params):
         try:
             easypost_id = easypost_id['id']
@@ -918,5 +951,5 @@ class Blob(AllResource, CreateResource):
 
         requestor = Requestor(api_key)
         url = "%s/%s" % (cls.class_url(), easypost_id)
-        response, api_key = requestor.request('get', url)
+        response, api_key = yield from requestor.request('get', url)
         return response["signed_url"]

@@ -1,13 +1,19 @@
-import easypost
+import asyncio
+import easypost_aiohttp as easypost
 easypost.api_key = 'cueqNZUb3ldeWTNX7MU3Mel8UXtaAMUi'
 
-# unicode
-state = u'DELEGACI\xf3N BENITO JU\xe1REZ'
+loop = asyncio.get_event_loop()
 
-address = easypost.Address.create(state=state)
+def test():
+    # unicode
+    state = u'DELEGACI\xf3N BENITO JU\xe1REZ'
 
-assert address.state == state
+    address = yield from easypost.Address.create(state=state)
 
-# bytestring
-address = easypost.Address.create(state=state.encode('utf-8'))
-assert address.state == state
+    assert address.state == state
+
+    # bytestring
+    address = yield from easypost.Address.create(state=state.encode('utf-8'))
+    assert address.state == state
+
+loop.run_until_complete(test())

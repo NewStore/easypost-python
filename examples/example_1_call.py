@@ -1,5 +1,8 @@
-import easypost
+import asyncio
+import easypost_aiohttp as easypost
+
 easypost.api_key = 'cueqNZUb3ldeWTNX7MU3Mel8UXtaAMUi'
+loop = asyncio.get_event_loop()
 
 # create addresses
 to_address = {
@@ -50,16 +53,19 @@ customs_info = {
     'customs_items': [customs_item]
 }
 
-shipment = easypost.Shipment.create(
-    to_address=to_address,
-    from_address=from_address,
-    parcel=parcel,
-    customs_info=customs_info
-)
+def test():
+    shipment = yield from easypost.Shipment.create(
+        to_address=to_address,
+        from_address=from_address,
+        parcel=parcel,
+        customs_info=customs_info
+    )
+    # print shipment.rates
+    yield from shipment.buy(rate=shipment.lowest_rate())
+    # Insure the shipment
+    yield from shipment.insure(amount=100)
 
-# print shipment.rates
-shipment.buy(rate=shipment.lowest_rate())
-# Insure the shipment
-shipment.insure(amount=100)
+    print(shipment)
 
-print(shipment)
+loop.run_until_complete(test())
+

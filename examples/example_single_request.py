@@ -1,4 +1,7 @@
-import easypost
+import asyncio
+import easypost_aiohttp as easypost
+
+loop = asyncio.get_event_loop()
 easypost.api_key = 'cueqNZUb3ldeWTNX7MU3Mel8UXtaAMUi'
 # easypost.api_base = 'http://localhost:5000/v2'
 
@@ -47,24 +50,27 @@ customs_info = {
         "weight": 21.1}]
 }
 
-shipment = easypost.Shipment.create(
-    to_address=to_address,
-    from_address=from_address,
-    parcel=parcel,
-    customs_info=customs_info)
+def test():
+    shipment = yield from easypost.Shipment.create(
+        to_address=to_address,
+        from_address=from_address,
+        parcel=parcel,
+        customs_info=customs_info)
 
-# Can also be done like so:
-#shipment = easypost.Shipment.create(
-#    {"to_address": to_address,
-#     "from_address": from_address,
-#     "parcel": parcel,
-#     "customs_info": customs_info})
+    # Can also be done like so:
+    #shipment = easypost.Shipment.create(
+    #    {"to_address": to_address,
+    #     "from_address": from_address,
+    #     "parcel": parcel,
+    #     "customs_info": customs_info})
 
 
-shipment.buy(rate=shipment.lowest_rate(
-    ['USPS', 'ups'],
-    'priorityMAILInternational'))
-# Insure the package
-shipment.insure(amount=100)
-print(shipment.tracking_code)
-print(shipment.postage_label.label_url)
+    yield from shipment.buy(rate=shipment.lowest_rate(
+        ['USPS', 'ups'],
+        'priorityMAILInternational'))
+    # Insure the package
+    yield from shipment.insure(amount=100)
+    print(shipment.tracking_code)
+    print(shipment.postage_label.label_url)
+
+loop.run_until_complete(test())
