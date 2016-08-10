@@ -1,3 +1,4 @@
+import aiohttp
 import six
 import json
 import platform
@@ -229,7 +230,7 @@ class Requestor(object):
     def request(self, method, url, params=None, apiKeyRequired=True):
         if params is None:
             params = {}
-        http_body, http_status, my_api_key = self.request_raw(method, url, params, apiKeyRequired)
+        http_body, http_status, my_api_key = yield from self.request_raw(method, url, params, apiKeyRequired)
         response = self.interpret_response(http_body, http_status)
         return response, my_api_key
 
@@ -272,7 +273,7 @@ class Requestor(object):
         if request_lib == 'urlfetch':
             http_body, http_status = self.urlfetch_request(method, abs_url, headers, params)
         elif request_lib == 'requests':
-            http_body, http_status = self.requests_request(method, abs_url, headers, params)
+            http_body, http_status = yield from self.requests_request(method, abs_url, headers, params)
         else:
             raise Error("Bug discovered: invalid request_lib: %s. "
                         "Please report to contact@easypost.com." % request_lib)
@@ -301,10 +302,14 @@ class Requestor(object):
                         "Please report to contact@easypost.com." % method)
 
         try:
-            result = requests.request(method, abs_url, headers=headers, data=data, timeout=60, verify=True)
-            http_body = result.text
-            http_status = result.status_code
+            with aiohttp.ClientSession() as session:
+                with aiohttp.Timeout(60.0):
+                    result = yield from session.request(method, abs_url, headers=headers, data=data)
+                    http_body = yield from result.text()
+                    http_status = result.status
+            #result = requests.request(method, abs_url, headers=headers, data=data, timeout=60, verify=True)
         except Exception as e:
+            print(e)
             raise Error("Unexpected error communicating with EasyPost. If this "
                         "problem persists please let us know at contact@easypost.com.")
         return http_body, http_status
@@ -547,7 +552,7 @@ class CreateResource(Resource):
         requestor = Requestor(api_key)
         url = cls.class_url()
         wrapped_params = {cls.class_name(): params}
-        response, api_key = requestor.request('post', url, wrapped_params)
+        response, api_key = yield from requestor.request('post', url, wrapped_params)
         return convert_to_easypost_object(response, api_key)
 
 

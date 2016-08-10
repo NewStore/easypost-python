@@ -6,7 +6,7 @@ try:
 except ImportError:
     from distutils.core import setup
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'easypost'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'easypost_aiohttp'))
 import importer
 import version
 
@@ -27,13 +27,13 @@ except ImportError:
     pass
 
 setup(
-    name='easypost',
+    name='easypost_aiohttp',
     version=version.VERSION,
     description='EasyPost Shipping API Client Library for Python',
     author='Sawyer Bateman',
     author_email='support@easypost.com',
     url='https://easypost.com/',
-    packages=['easypost'],
+    packages=['easypost_aiohttp'],
     package_data={'easypost': ['../VERSION']},
     install_requires=install_requires,
     test_suite='test'
