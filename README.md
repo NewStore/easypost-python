@@ -1,6 +1,6 @@
-# EasyPost Python Client Library
+# EasyPost Python Client Library for asyncio
 
-EasyPost is a simple shipping API. You can sign up for an account at https://easypost.com
+easypost wrapping Library with `asyncio`
 
 Requirements
 ------------
@@ -12,11 +12,11 @@ Installation
 
 You can install easypost via pip with:
 
-    pip install easypost
+    pip install easypost_aiohttp
 
 Alternatively, you can clone the EasyPost python client repository:
 
-    git clone https://github.com/EasyPost/easypost-python
+    git clone https://github.com/NewStore/easypost-python
 
 Install:
 
@@ -24,17 +24,17 @@ Install:
 
 Import the EasyPost client:
 
-    import easypost
+    import easypost_aiohttp
 
 Example
 -------
 
 ```python
-import easypost
+import easypost_aiohttp as easypost
 easypost.api_key = 'cueqNZUb3ldeWTNX7MU3Mel8UXtaAMUi'
 
 # create and verify addresses
-to_address = easypost.Address.create(
+to_address = yield from easypost.Address.create(
   verify=["delivery"],
   name = "Dr. Steve Brule",
   street1 = "179 N Harbor Dr",
@@ -45,7 +45,7 @@ to_address = easypost.Address.create(
   country = "US",
   phone = "310-808-5243"
 )
-from_address = easypost.Address.create(
+from_address = yield from easypost.Address.create(
   verify=["delivery"],
   name = "EasyPost",
   street1 = "118 2nd Street",
@@ -59,7 +59,7 @@ from_address = easypost.Address.create(
 
 # create parcel
 try:
-  parcel = easypost.Parcel.create(
+  parcel = yield from easypost.Parcel.create(
     predefined_package = "Parcel",
     weight = 21.2
   )
@@ -69,7 +69,7 @@ except easypost.Error as e:
     print 'Specifically an invalid param: ' + e.param
 
 try:
-  parcel = easypost.Parcel.create(
+  parcel = yield from easypost.Parcel.create(
     length = 10.2,
     width = 7.8,
     height = 4.3,
@@ -79,7 +79,7 @@ except easypost.Error as e:
   raise e
 
 # create customs_info form for intl shipping
-customs_item = easypost.CustomsItem.create(
+customs_item = yield from easypost.CustomsItem.create(
   description = "EasyPost t-shirts",
   hs_tariff_number = 123456,
   origin_country = "US",
@@ -87,7 +87,7 @@ customs_item = easypost.CustomsItem.create(
   value = 96.27,
   weight = 21.1
 )
-customs_info = easypost.CustomsInfo.create(
+customs_info = yield from easypost.CustomsInfo.create(
   customs_certify = 1,
   customs_signer = "Hector Hammerfall",
   contents_type = "gift",
@@ -100,7 +100,7 @@ customs_info = easypost.CustomsInfo.create(
 )
 
 # create shipment
-shipment = easypost.Shipment.create(
+shipment = yield from easypost.Shipment.create(
   to_address = to_address,
   from_address = from_address,
   parcel = parcel,
@@ -108,14 +108,14 @@ shipment = easypost.Shipment.create(
 )
 
 # buy postage label with one of the rate objects
-shipment.buy(rate = shipment.rates[0])
+yield from shipment.buy(rate = shipment.rates[0])
 # alternatively: shipment.buy(rate = shipment.lowest_rate())
 
 print shipment.tracking_code
 print shipment.postage_label.label_url
 
 # Insure the shipment for the value
-shipment.insure(amount=100)
+yield from shipment.insure(amount=100)
 
 print shipment.insurance
 ```
