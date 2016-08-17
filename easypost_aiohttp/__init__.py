@@ -312,7 +312,6 @@ class Requestor(object):
                     http_body = yield from result.text()
                     http_status = result.status
         except Exception as e:
-            print(e)
             raise Error("Unexpected error communicating with EasyPost. If this "
                         "problem persists please let us know at contact@easypost.com.")
         return http_body, http_status
