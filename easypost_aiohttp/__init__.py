@@ -307,10 +307,12 @@ class Requestor(object):
 
         try:
             with aiohttp.ClientSession() as session:
-                with aiohttp.Timeout(60.0):
+                with aiohttp.Timeout(5.0):
                     result = yield from session.request(method, abs_url, headers=headers, data=data)
                     http_body = yield from result.text()
                     http_status = result.status
+        except asyncio.TimeoutError as e:
+            raise Error("Timeout: Can't connect to %s" % api_base)
         except Exception as e:
             raise Error("Unexpected error communicating with EasyPost. If this "
                         "problem persists please let us know at contact@easypost.com.")
