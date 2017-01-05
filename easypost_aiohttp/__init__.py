@@ -966,7 +966,7 @@ class Report(AllResource, CreateResource):
         else:
             raise Exception("Undertermined Report Type")
 
-        response, api_key = requestor.request('post', url, wrapped_params, False)
+        response, api_key = yield from requestor.request('post', url, wrapped_params, False)
         return convert_to_easypost_object(response, api_key)
 
     @classmethod
@@ -986,7 +986,7 @@ class Report(AllResource, CreateResource):
             raise Exception("Undetermined Report Type")
 
         requestor = Requestor(api_key)
-        response, api_key = requestor.request('get', url)
+        response, api_key = yield from requestor.request('get', url)
         return convert_to_easypost_object(response, api_key)
 
     @classmethod
@@ -999,7 +999,7 @@ class Report(AllResource, CreateResource):
         else:
             raise Exception("Undertemined Report Type")
 
-        response, api_key = requestor.request('get', url, params)
+        response, api_key = yield from requestor.request('get', url, params)
         return convert_to_easypost_object(response, api_key)
 
 
