@@ -8,8 +8,8 @@ import datetime
 import types
 import re
 from six.moves.urllib.parse import urlencode, quote_plus, urlparse
-
 from .version import VERSION
+
 
 # use urlfetch as request_lib on google app engine, otherwise use requests
 request_lib = None
@@ -20,6 +20,7 @@ except ImportError:
     try:
         import requests
         request_lib = 'requests'
+        requests_session = requests.Session()
     except ImportError:
         raise ImportError('EasyPost requires an up to date requests library. '
                           'Update requests via "pip install -U requests" or '
@@ -79,7 +80,11 @@ def convert_to_easypost_object(response, api_key, parent=None, name=None):
         'PickupRate': PickupRate,
         'PostageLabel': PostageLabel,
         'CarrierAccount': CarrierAccount,
-        'User': User
+        'User': User,
+        'Report': Report,
+        'ShipmentReport': Report,
+        'PaymentLogReport': Report,
+        'TrackerReport': Report
     }
 
     prefixes = {
@@ -100,7 +105,10 @@ def convert_to_easypost_object(response, api_key, parent=None, name=None):
         'pickuprate': PickupRate,
         'pl': PostageLabel,
         'ca': CarrierAccount,
-        'user': User
+        'user': User,
+        'shprep': Report,
+        'plrep': Report,
+        'trkrep': Report
     }
 
     if isinstance(response, list):
@@ -307,7 +315,7 @@ class Requestor(object):
 
         try:
             with aiohttp.ClientSession() as session:
-                with aiohttp.Timeout(5.0):
+                with aiohttp.Timeout(15.0):
                     result = yield from session.request(method, abs_url, headers=headers, data=data)
                     http_body = yield from result.text()
                     http_status = result.status
@@ -462,7 +470,7 @@ class EasyPostObject(object):
 
     def __str__(self):
         return self.to_json(indent=2)
-    
+
     def to_json(self, indent=None):
         return json.dumps(self.to_dict(), sort_keys=True, indent=indent, cls=EasyPostObjectEncoder)
 
@@ -661,8 +669,10 @@ class Address(AllResource, CreateResource):
 class ScanForm(AllResource, CreateResource):
     pass
 
+
 class Insurance(AllResource, CreateResource):
     pass
+
 
 class CustomsItem(AllResource, CreateResource):
     pass
@@ -939,6 +949,58 @@ class User(CreateResource, UpdateResource, DeleteResource):
                     break
 
         return my_api_keys
+
+
+class Report(AllResource, CreateResource):
+
+    REPORT_TYPES = {'shprep': 'shipment', 'plrep': 'payment_log', 'trkrep': 'tracker'}
+
+    @classmethod
+    def create(cls, api_key=None, **params):
+        requestor = Requestor(api_key)
+        url = cls.class_url()
+        wrapped_params = {cls.class_name(): params}
+
+        if str(params['type']) in cls.REPORT_TYPES.values():
+            url += "/%s" % params['type']
+        else:
+            raise Exception("Undertermined Report Type")
+
+        response, api_key = requestor.request('post', url, wrapped_params, False)
+        return convert_to_easypost_object(response, api_key)
+
+    @classmethod
+    def retrieve(cls, easypost_id="", api_key=None, **params):
+        try:
+            easypost_id = easypost_id['id']
+        except (KeyError, TypeError):
+            pass
+
+        url = cls.class_url()
+
+        obj_id = easypost_id.split("_")[0]
+
+        if obj_id in cls.REPORT_TYPES:
+            url += "/%s/%s" % (cls.REPORT_TYPES[obj_id], easypost_id)
+        else:
+            raise Exception("Undetermined Report Type")
+
+        requestor = Requestor(api_key)
+        response, api_key = requestor.request('get', url)
+        return convert_to_easypost_object(response, api_key)
+
+    @classmethod
+    def all(cls, api_key=None, **params):
+        requestor = Requestor(api_key)
+        url = cls.class_url()
+
+        if str(params['type']) in cls.REPORT_TYPES.values():
+            url += "/%s" % params['type']
+        else:
+            raise Exception("Undertemined Report Type")
+
+        response, api_key = requestor.request('get', url, params)
+        return convert_to_easypost_object(response, api_key)
 
 
 class Blob(AllResource, CreateResource):
