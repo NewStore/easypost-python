@@ -29,9 +29,9 @@ except ImportError:
 setup(
     name='easypost_aiohttp',
     version=version.VERSION,
-    description='EasyPost Shipping API Client Library for Python',
-    author='Sawyer Bateman',
-    author_email='support@easypost.com',
+    description='EasyPost Shipping API Client Library for Python asyncio',
+    author='Jihyuk Bok',
+    author_email='jhbok@newstore.com',
     url='https://easypost.com/',
     packages=['easypost_aiohttp'],
     package_data={'easypost': ['../VERSION']},
