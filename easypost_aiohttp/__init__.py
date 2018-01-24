@@ -503,6 +503,7 @@ class Resource(EasyPostObject):
         return [self.get('id')]
 
     @classmethod
+    @asyncio.coroutine
     def retrieve(cls, easypost_id, api_key=None, **params):
         try:
             easypost_id = easypost_id['id']

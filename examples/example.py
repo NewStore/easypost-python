@@ -1,6 +1,6 @@
 import asyncio
 import easypost_aiohttp as easypost
-easypost.api_key = 'cueqNZUb3ldeWTNX7MU3Mel8UXtaAMUi'
+easypost.api_key = 'YZIaxulFtrBL9e3Nv3TECQ'
 # easypost.api_base = 'http://localhost:5000/v2'
 
 loop = asyncio.get_event_loop()
@@ -14,7 +14,7 @@ def test():
         city="St. Albert",
         state="AB",
         zip="t8n2m4",
-        country="CA",
+        country="DE",
         phone="780-283-9384"
     )
     from_address = easypost.Address.create(
@@ -29,13 +29,13 @@ def test():
 
     to_address, from_address = yield from asyncio.gather(to_address, from_address)
     # verify address
-    try:
-        verified_from_address = yield from from_address.verify()
-    except easypost.Error as e:
-        raise e
-    if hasattr(verified_from_address, 'message'):
-        # the from address is not invalid, but it has an issue
-        pass
+    # try:
+    verified_from_address = yield from from_address.verify()
+    # except easypost.Error as e:
+    #     raise e
+    # if hasattr(verified_from_address, 'message'):
+    #     # the from address is not invalid, but it has an issue
+    #     pass
 
     # create parcel
     try:
@@ -91,9 +91,9 @@ def test():
     # shipment.buy(rate = shipment.rates[0])
     # shipment.buy(rate = shipment.lowest_rate('usps'))
     yield from shipment.buy(rate=shipment.lowest_rate(
-        ['USPS', 'ups'], 'priorityMAILInternational'))
+        ['ups'], 'priorityMAILInternational'))
     # Insure the shipment for the value
-    yield from shipment.insure(amount=100)
+    # yield from shipment.insure(amount=100)
 
     # shipment.refund()
     # print(shipment.refund_status)
